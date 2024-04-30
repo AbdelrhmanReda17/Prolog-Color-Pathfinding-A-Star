@@ -32,30 +32,19 @@ find_path(Board, Start, Goal) :-
 find_path(_, _, _) :-
     format("No path exists.~n").
 
-astar([[State, Path, G, _, _]|Rest], Goal, Closed, Board) :-
+astar([[State, Parent, G, H, F]|Rest], Goal, Closed, Board) :-
     (State == Goal  ->
-        reverse([Goal|Closed], Cycle),
-        format("cycle found: ~w", [Cycle]),nl
+        printSolution( [State, Parent, G, H, F] , Closed), !
     ;
-        getAllValidNeighbors([State, Path, G, _, _], Rest, Closed, Goal, Children, Board),
-        append(Children, Rest, NewOpen),
-        % write(NewOpen),nl,
+        getAllValidNeighbors([State, Parent, G, _, _], Rest, Closed, Goal, Children, Board),
+        append(Rest, Children, NewOpen),
         predsort(compareNewF, NewOpen, SortedAllChildren),
-        % write(SortedAllChildren),nl,
-        astar(SortedAllChildren, Goal, [State|Closed], Board)
+        astar(SortedAllChildren, Goal, [[State, Parent, G, H, F]|Closed], Board)
     ).
 
-compareNewF(Order, [[X1,Y1], _, G1, H1, F1], [[X2,Y2], _, G2, H2, F2]) :-
+compareNewF(Order, [_, _, _, _, F1], [_, _, _, _, F2]) :-
     (F1 == F2 ->
-        (H1 == H2 ->
-            (G1 == G2 ->
-                compare(Order, [X1,Y1], [X2,Y2])
-                ;
-                compare(Order, G1, G2)
-            )
-            ;
-            compare(Order, H1, H2)
-        )
+        true
         ;
         compare(Order, F1, F2)
     ).
@@ -74,13 +63,24 @@ getNextState([State, _, G, _, _], Open, Closed, Goal, [Next, State, NewG, NewH, 
     calculateH(Next, Goal, NewH),
     NewG is G + MoveCost,
     NewF is NewG + NewH,
-    \+ member(Next, Open),
-    \+ member(Next, Closed).
+    ( not(member([Next,_,_,_,_], Open)) ; memberButBetter(Next,Open,NewF) ),
+    ( not(member([Next,_,_,_,_], Closed)); memberButBetter(Next,Closed,NewF) ).
 
+memberButBetter(Next, List, NewF):-
+    findall(F, member([Next,_,_,_,F], List), Numbers),
+    min_list(Numbers, MinOldF),
+    MinOldF > NewF.
+    
+printSolution([State, [], G, H, F],_):-
+    write([State, G, H, F]), nl.
+
+printSolution([State, Parent, G, H, F], Closed):-
+    member([Parent, GrandParent, PrevG, Ph, Pf], Closed),
+    printSolution([Parent, GrandParent, PrevG, Ph, Pf], Closed),
+    write([State, G, H, F]), nl.
 
 % Define possible moves
 move([X,Y], [X1,Y], 1) :- X1 is X+1. % Move right
 move([X,Y], [X,Y1], 1) :- Y1 is Y+1. % Move down
 move([X,Y], [X1,Y], 1) :- X1 is X-1, X1 >= 0. % Move left, ensuring the new X coordinate is within the board boundaries
 move([X,Y], [X,Y1], 1) :- Y1 is Y-1, Y1 >= 0. % Move up, ensuring the new Y coordinate is within the board boundaries
-
