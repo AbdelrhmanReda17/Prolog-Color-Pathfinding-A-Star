@@ -27,8 +27,7 @@ calculateH([X1,Y1], [X2,Y2], H) :-
 % Define the main predicate to reach the goal
 find_path(Board, Start, Goal) :-
     same_color(Start, Goal, Board),
-    astar([[Start, [], 0, 0, 0]], Goal, [], Board),
-    !.
+    astar([[Start, [], 0, 0, 0]], Goal, [], Board) , !.
 
 find_path(_, _, _) :-
     format("No path exists.~n").
@@ -40,12 +39,26 @@ astar([[State, Path, G, _, _]|Rest], Goal, Closed, Board) :-
     ;
         getAllValidNeighbors([State, Path, G, _, _], Rest, Closed, Goal, Children, Board),
         append(Children, Rest, NewOpen),
+        % write(NewOpen),nl,
         predsort(compareNewF, NewOpen, SortedAllChildren),
+        % write(SortedAllChildren),nl,
         astar(SortedAllChildren, Goal, [State|Closed], Board)
     ).
-    
-compareNewF(Order, [_, _, _, _, F1], [_, _, _, _, F2]) :-
-    compare(Order, F1, F2).
+
+compareNewF(Order, [[X1,Y1], _, G1, H1, F1], [[X2,Y2], _, G2, H2, F2]) :-
+    (F1 == F2 ->
+        (H1 == H2 ->
+            (G1 == G2 ->
+                compare(Order, [X1,Y1], [X2,Y2])
+                ;
+                compare(Order, G1, G2)
+            )
+            ;
+            compare(Order, H1, H2)
+        )
+        ;
+        compare(Order, F1, F2)
+    ).
 
 % Define the predicate to get all valid neighbors of a node
 getAllValidNeighbors([State, _, G, _, _], Open, Closed, Goal, Children , Board) :-
